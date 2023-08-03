@@ -72,16 +72,18 @@ router.post(`/`, async (req, res) => {
       });
     }
   } catch (error) {
-    res.status(400).send({
+    res.status(500).send({
       message: 'System error please try again in a moment',
     });
   }
 });
 
 router.post(`/register`, async (req, res) => {
-  const { email, password, firstName, lastName } = req.body;
+  const { email, password, firstName, lastName, role } = req.body;
+  console.log(role);
+
   try {
-    await userSchema.validate({ email, password, firstName, lastName });
+    await userSchema.validate({ email, password, firstName, lastName, role });
     const user = await userSchema.findOne({ email });
     if (user) {
       return res.status(400).json({
@@ -94,6 +96,7 @@ router.post(`/register`, async (req, res) => {
           password: bcrypt.hashSync(password, 10),
           firstName: firstName,
           lastName: lastName,
+          role: role === undefined ? ['user'] : role,
         })
         .then(() => {
           res.json({
@@ -101,7 +104,7 @@ router.post(`/register`, async (req, res) => {
           });
         })
         .catch((e: any) => {
-          res.status(400).json({
+          res.status(500).json({
             message: 'The system is crashing, please try again in a few minutes',
           });
         });

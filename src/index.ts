@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { MONGODB_URL_LOCAL } from '../util/secret';
 import userRouter from '../src/router/userRourter';
 import { createUserOne } from './controllers/createUserOne';
+var cors = require('cors');
 
 const { connection } = mongoose;
 const routeApi = process.env.ROUTE_API;
@@ -35,6 +36,8 @@ connection.on('error', (error: Error) => {
 
 const app = express();
 app.use(express.json());
+
+app.use(cors());
 
 app.use(`/${routeApi}/test`, (req, res) => {
   res.status(200);
