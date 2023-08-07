@@ -7,21 +7,21 @@ import { checkRoleUser, getTokenMiddleware } from '../middlewares/userMiddleWare
 
 const router = express.Router();
 router.get(`/all-user`, getAllUserMiddleware, async (req, res) => {
-  const user = await userSchema.find();
   const { limit, page } = req.query;
-  const dataPatition = user.filter((arrD: any, index: number) => {
-    if (index < Number(page) * Number(limit) && index > (Number(page) - 1) * Number(limit) - 1) {
-      return arrD;
-    }
-  });
+  const user = await userSchema
+    .find()
+    .limit(Number(limit))
+    .skip((Number(page) - 1) * Number(limit));
+  const userLenght = await userSchema.count();
+
   res.status(200);
   res.send({
     message: 'get ALl User',
-    user: dataPatition,
+    user: user,
     pagination: {
       curPage: Number(page),
-      lastPage: Math.ceil(Math.max(user.length, 1) / Number(limit)),
-      totalCount: user.length,
+      lastPage: Math.ceil(Math.max(userLenght, 1) / Number(limit)),
+      totalCount: userLenght || 0,
     },
   });
 });

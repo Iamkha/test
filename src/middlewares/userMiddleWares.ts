@@ -20,11 +20,11 @@ export const checkRoleUser = (data: Array<any>) => {
     }
     return 1;
   });
-  let max = coutArr[0];
-  for (let i = 1; i < coutArr.length; i++) {
-    if (coutArr[i] > max) {
-      max = coutArr[i];
-    }
-  }
-  return max || 1;
+  // let max = coutArr[0];
+  // for (let i = 1; i < coutArr.length; i++) {
+  //   if (coutArr[i] > max) {
+  //     max = coutArr[i];
+  //   }
+  // }
+  return Math.max(...coutArr) || 1;
 };
