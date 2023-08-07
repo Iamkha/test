@@ -1,7 +1,9 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import userSchema from '../models/userModels';
 import { getAllUserMiddleware } from '../middlewares/getAllUserMiddleWares';
+import { checkRoleUser, getTokenMiddleware } from '../middlewares/userMiddleWares';
 
 const router = express.Router();
 router.get(`/all-user`, getAllUserMiddleware, async (req, res) => {
@@ -44,18 +46,8 @@ router.post(`/`, async (req, res) => {
     });
     if (!!user) {
       if (user.email === email && bcrypt.compareSync(password, user.password)) {
-        // const older_token = jwt.sign(
-        //   {
-        //     email: user.email,
-        //     firstName: user.firstName,
-        //     lastName: user.lastName,
-        //   },
-        //   process.env.CHECK_TOKEN,
-        //   { expiresIn: '1h' },
-        // );
-        res.status(200).send({
-          message: 'succes',
-          user: {
+        const older_token = jwt.sign(
+          {
             email: user.email,
             firstName: user.firstName,
             lastName: user.lastName,
@@ -63,6 +55,12 @@ router.post(`/`, async (req, res) => {
             updated_at: user.updated_at,
             role: user.role,
           },
+          process.env.CHECK_TOKEN,
+          { expiresIn: '1h' },
+        );
+        res.status(200).send({
+          message: 'succes',
+          token: older_token,
         });
       } else {
         res.status(400).send({
@@ -98,7 +96,7 @@ router.post(`/register`, async (req, res) => {
           password: bcrypt.hashSync(password, 10),
           firstName: firstName,
           lastName: lastName,
-          role: role === undefined ? ['user'] : role,
+          role: role === undefined || [] ? ['user'] : role,
         })
         .then(() => {
           res.json({
@@ -125,16 +123,16 @@ router.post(`/register`, async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', getTokenMiddleware, async (req, res) => {
   const { id } = req.params;
-  const userEdit = await userSchema.findOne({ _id: id });
-  const user = await userSchema.findOne({ email: req.headers['gmail_user'] });
+  const userDelete = await userSchema.findOne({ _id: id });
+  const { email, firstName, lastName, role } = jwt.decode(req.headers['token'], process.env.CHECK_TOKEN);
+
   if (
-    userEdit !== null &&
-    user !== null &&
-    userEdit?.email !== user?.email &&
-    ((user.role?.includes('superadmin') && !userEdit?.role?.includes('superadmin')) ||
-      (user?.role?.includes('admin') && (!userEdit?.role?.includes('admin') || !userEdit.role?.includes('superadmin'))))
+    userDelete !== null &&
+    role !== null &&
+    userDelete?.email !== email &&
+    checkRoleUser(role) > checkRoleUser(userDelete.role)
   ) {
     await userSchema
       .findByIdAndDelete(id)
@@ -157,20 +155,20 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', getTokenMiddleware, async (req, res) => {
   const { id } = req.params;
   const { email, firstName, lastName, created_at, updated_at, role } = req.body;
   const userEdit = await userSchema.findOne({ _id: id });
-  const user = await userSchema.findOne({ email: req.headers['gmail_user'] });
+  const user = jwt.decode(req.headers['token'], process.env.CHECK_TOKEN);
 
   if (
     userEdit !== null &&
     user !== null &&
-    ((user.role?.includes('superadmin') && !userEdit?.role?.includes('superadmin')) ||
-      (user?.role?.includes('admin') && (!userEdit?.role?.includes('admin') || !userEdit.role?.includes('superadmin'))))
+    checkRoleUser(role) <= checkRoleUser(user.role) &&
+    (checkRoleUser(user.role) > checkRoleUser(userEdit.role) || user.email === userEdit.email)
   ) {
     const user = await userSchema.findOne({ email });
-    if (user.email !== userEdit.email) {
+    if (user?.email !== userEdit.email && user) {
       return res.status(400).json({
         message: 'Email already exists',
       });
