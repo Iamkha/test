@@ -162,6 +162,7 @@ router.put('/:id', getTokenMiddleware, async (req, res) => {
   const { email, firstName, lastName, created_at, updated_at, role } = req.body;
   const userEdit = await userSchema.findOne({ _id: id });
   const user = jwt.decode(req.headers['authorization'].split(' ')[1], process.env.CHECK_TOKEN);
+  console.log(user);
 
   if (
     userEdit !== null &&
@@ -180,8 +181,6 @@ router.put('/:id', getTokenMiddleware, async (req, res) => {
           email,
           firstName,
           lastName,
-          created_at,
-          updated_at,
           role,
         })
         .catch((err) => {
