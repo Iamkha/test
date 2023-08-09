@@ -1,9 +1,13 @@
 import { Response, NextFunction, Request } from 'express';
+import jwt from 'jsonwebtoken';
 
 export const getTokenMiddleware = async (req: Request, res: Response, next: NextFunction) => {
-  if (!!req.headers['token']) {
+  try {
+    jwt.verify(req.headers['authorization'].split(' ')[1], process.env.CHECK_TOKEN);
+
     next();
-  } else {
+  } catch (err) {
+    // err
     res.status(401).send({
       message: 'token does not exist',
     });
@@ -20,11 +24,5 @@ export const checkRoleUser = (data: Array<any>) => {
     }
     return 1;
   });
-  // let max = coutArr[0];
-  // for (let i = 1; i < coutArr.length; i++) {
-  //   if (coutArr[i] > max) {
-  //     max = coutArr[i];
-  //   }
-  // }
   return Math.max(...coutArr) || 1;
 };

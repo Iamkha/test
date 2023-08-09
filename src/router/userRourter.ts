@@ -2,36 +2,35 @@ import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import userSchema from '../models/userModels';
-import { getAllUserMiddleware } from '../middlewares/getAllUserMiddleWares';
 import { checkRoleUser, getTokenMiddleware } from '../middlewares/userMiddleWares';
+import { securityCodeMidleWare } from '../middlewares/securityCodeMidleWare';
 
 const router = express.Router();
-router.get(`/all-user`, getAllUserMiddleware, async (req, res) => {
+router.get(`/all-user`, securityCodeMidleWare, async (req, res) => {
   const { limit, page } = req.query;
-  const user = await userSchema
-    .find()
-    .limit(Number(limit))
-    .skip((Number(page) - 1) * Number(limit));
-  const userLenght = await userSchema.count();
 
-  res.status(200);
-  res.send({
-    message: 'get ALl User',
-    user: user,
-    pagination: {
-      curPage: Number(page),
-      lastPage: Math.ceil(Math.max(userLenght, 1) / Number(limit)),
-      totalCount: userLenght || 0,
-    },
-  });
-});
-router.get(`/`, async (req, res) => {
-  const user = await userSchema.find();
-  res.status(200);
-  res.send({
-    message: 'get User',
-    user: user,
-  });
+  try {
+    const user = await userSchema
+      .find()
+      .limit(Number(limit) || 10)
+      .skip((Number(page) - 1) * Number(limit));
+
+    const userLenght = await userSchema.countDocuments();
+    res.status(200);
+    res.send({
+      message: 'get ALl User',
+      user: user,
+      pagination: {
+        curPage: Number(page),
+        lastPage: Math.ceil(Math.max(userLenght, 1) / Number(limit)),
+        totalCount: userLenght || 0,
+      },
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: 'System error please try again in a moment',
+    });
+  }
 });
 
 router.post(`/`, async (req, res) => {
@@ -56,7 +55,7 @@ router.post(`/`, async (req, res) => {
             role: user.role,
           },
           process.env.CHECK_TOKEN,
-          { expiresIn: '1h' },
+          { expiresIn: 60 * 60 * 24 * 30 },
         );
         res.status(200).send({
           message: 'succes',
@@ -126,7 +125,10 @@ router.post(`/register`, async (req, res) => {
 router.delete('/:id', getTokenMiddleware, async (req, res) => {
   const { id } = req.params;
   const userDelete = await userSchema.findOne({ _id: id });
-  const { email, firstName, lastName, role } = jwt.decode(req.headers['token'], process.env.CHECK_TOKEN);
+  const { email, firstName, lastName, role } = jwt.decode(
+    req.headers['authorization'].split(' ')[1],
+    process.env.CHECK_TOKEN,
+  );
 
   if (
     userDelete !== null &&
@@ -159,7 +161,7 @@ router.put('/:id', getTokenMiddleware, async (req, res) => {
   const { id } = req.params;
   const { email, firstName, lastName, created_at, updated_at, role } = req.body;
   const userEdit = await userSchema.findOne({ _id: id });
-  const user = jwt.decode(req.headers['token'], process.env.CHECK_TOKEN);
+  const user = jwt.decode(req.headers['authorization'].split(' ')[1], process.env.CHECK_TOKEN);
 
   if (
     userEdit !== null &&
@@ -167,8 +169,8 @@ router.put('/:id', getTokenMiddleware, async (req, res) => {
     checkRoleUser(role) <= checkRoleUser(user.role) &&
     (checkRoleUser(user.role) > checkRoleUser(userEdit.role) || user.email === userEdit.email)
   ) {
-    const user = await userSchema.findOne({ email });
-    if (user?.email !== userEdit.email && user) {
+    const userAlready = await userSchema.findOne({ email });
+    if (userAlready.email !== userEdit.email && userAlready) {
       return res.status(400).json({
         message: 'Email already exists',
       });

@@ -3,7 +3,9 @@ import express from 'express';
 import mongoose from 'mongoose';
 import { MONGODB_URL_LOCAL } from '../util/secret';
 import userRouter from '../src/router/userRourter';
+import companiesRouter from '../src/router/companiesRouter';
 import { createUserOne } from './controllers/createUserOne';
+import { getTokenMiddleware } from './middlewares/userMiddleWares';
 var cors = require('cors');
 
 const { connection } = mongoose;
@@ -48,6 +50,8 @@ app.use(`/${routeApi}/test`, (req, res) => {
 });
 
 app.use(`/${routeApi}/user`, userRouter);
+// app.use([getTokenMiddleware]);
+app.use(`/${routeApi}/companies`, companiesRouter);
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
