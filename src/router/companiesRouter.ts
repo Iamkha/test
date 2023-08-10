@@ -2,6 +2,7 @@ import express from 'express';
 import companiesModels from '../models/companiesModels';
 import templatesModels from '../models/templatesModels';
 import { securityCodeMidleWare } from '../middlewares/securityCodeMidleWare';
+import csvToJson from 'convert-csv-to-json';
 
 const router = express.Router();
 router.get(`/`, securityCodeMidleWare, async (req, res) => {
@@ -45,7 +46,7 @@ router.get(`/`, securityCodeMidleWare, async (req, res) => {
           },
         },
         {
-          $skip: Number(skip),
+          $skip: skip,
         },
       ])
       .limit(Number(limit) || 10);
@@ -55,13 +56,37 @@ router.get(`/`, securityCodeMidleWare, async (req, res) => {
       data: data,
       pagination: {
         curPage: Number(page),
-        lastPage: Math.ceil(Math.max(data.length, 1) / Number(limit)),
-        totalCount: data.length || 0,
+        // lastPage: Math.ceil(Math.max(data.length, 1) / Number(limit)),
+        // totalCount: data.length || 0,
       },
     });
   } catch (error) {
+    console.log(error);
+
     res.status(500).send({
       message: 'System error please try again in a moment',
+    });
+  }
+});
+
+router.post('/add-file', securityCodeMidleWare, async (req, res) => {
+  try {
+    const json = await csvToJson.fieldDelimiter(',').getJsonFromCsv('./src/file/Vendors.csv');
+    for (let i = 0; i < json.length; i++) {
+      await companiesModels.create({
+        no: json[i]['No.'],
+        Name: json[i].Name,
+        Name2: json[i].Name2,
+        searchName: json[i].SearchName,
+      });
+    }
+    return res.status(200).json({
+      message: 'success',
+      json,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: 'The system is crashing, please try again in a few minutes',
     });
   }
 });

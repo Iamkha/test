@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import userSchema from '../models/userModels';
 import { checkRoleUser, getTokenMiddleware } from '../middlewares/userMiddleWares';
 import { securityCodeMidleWare } from '../middlewares/securityCodeMidleWare';
+import { body, validationResult } from 'express-validator';
 
 const router = express.Router();
 router.get(`/all-user`, securityCodeMidleWare, async (req, res) => {
@@ -33,12 +34,12 @@ router.get(`/all-user`, securityCodeMidleWare, async (req, res) => {
   }
 });
 
-router.post(`/`, async (req, res) => {
+router.post(`/`, body('email').isEmail(), body('password').isLength({ min: 5 }), async (req, res) => {
   const { email, password } = req.body;
-  // if (email === '' || password === '') {
-  //   return;
-  // }
-
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
   try {
     const user = await userSchema.findOne({
       email,
@@ -98,7 +99,7 @@ router.post(`/register`, async (req, res) => {
           role: role === undefined || [] ? ['user'] : role,
         })
         .then(() => {
-          res.json({
+          res.status(200).json({
             message: 'added user successfully',
           });
         })
@@ -152,53 +153,66 @@ router.delete('/:id', getTokenMiddleware, async (req, res) => {
       });
   } else {
     return res.status(400).json({
-      message: 'You are not authorized to delete this user',
+      message: 'You are not authorized to do this work',
     });
   }
 });
 
 router.put('/:id', getTokenMiddleware, async (req, res) => {
   const { id } = req.params;
-  const { email, firstName, lastName, created_at, updated_at, role } = req.body;
+  const { email, firstName, lastName, role } = req.body;
   const userEdit = await userSchema.findOne({ _id: id });
   const user = jwt.decode(req.headers['authorization'].split(' ')[1], process.env.CHECK_TOKEN);
-  console.log(user);
 
-  if (
-    userEdit !== null &&
-    user !== null &&
-    checkRoleUser(role) <= checkRoleUser(user.role) &&
-    (checkRoleUser(user.role) > checkRoleUser(userEdit.role) || user.email === userEdit.email)
-  ) {
-    const userAlready = await userSchema.findOne({ email });
-    if (userAlready.email !== userEdit.email && userAlready) {
-      return res.status(400).json({
-        message: 'Email already exists',
-      });
-    } else {
-      await userSchema
-        .findByIdAndUpdate(id, {
-          email,
-          firstName,
-          lastName,
-          role,
-        })
-        .catch((err) => {
-          return res.status(500).json({
-            success: false,
-            message: 'The system crashed, please try again in a moment',
-          });
-        })
-        .then(() => {
-          return res.status(200).json({
-            success: true,
-            message: 'You have successfully edit the user',
-          });
+  try {
+    await userSchema.validate({ email, firstName, lastName, role });
+    if (
+      userEdit !== null &&
+      user !== null &&
+      checkRoleUser(role) <= checkRoleUser(user.role) &&
+      (checkRoleUser(user.role) > checkRoleUser(userEdit.role) || user.email === userEdit.email)
+    ) {
+      const userAlready = await userSchema.findOne({ email });
+      if (userAlready.email !== userEdit.email && userAlready) {
+        return res.status(400).json({
+          message: 'Email already exists',
         });
+      } else {
+        await userSchema
+          .findByIdAndUpdate(id, {
+            email,
+            firstName,
+            lastName,
+            role,
+          })
+          .catch((err) => {
+            return res.status(500).json({
+              success: false,
+              message: 'The system crashed, please try again in a moment',
+            });
+          })
+          .then(() => {
+            return res.status(200).json({
+              success: true,
+              message: 'You have successfully edit the user',
+            });
+          });
+      }
+    } else {
+      return res.status(400).json({
+        message: 'You are not authorized to do this work',
+      });
     }
-  } else {
+  } catch (error) {
+    const err = error.errors;
+    const keys = Object.keys(err);
+    const errorsObj = {};
+    keys.map((key) => {
+      errorsObj[key] = err[key].message;
+    });
     return res.status(400).json({
-      message: 'You are not authorized to edit this user',
+      message: 'errors',
+      errors: errorsObj,
     });
   }
 });

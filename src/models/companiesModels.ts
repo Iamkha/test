@@ -6,7 +6,6 @@ const companiesSchema = Schema(
   {
     name: {
       type: String,
-      required: [true, 'First Name is not null'],
     },
     address: {
       type: String,
