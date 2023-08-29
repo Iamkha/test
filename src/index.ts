@@ -78,16 +78,20 @@ app.post('/upload', upload.array('files'), async (req, res) => {
   //   })
   //   .endPDF();
 
-  const cmd = `qpdf --replace-input --encrypt 12345 12345 256 --modify=none -- ./src/uploads/${req.files[0].originalname}`;
+  try {
+    const cmd = `qpdf --replace-input --encrypt 12345 12345 256 --modify=none -- ./src/uploads/${req.files[0].originalname}`;
 
-  await exec(cmd, (er) => {
-    if (er) {
-      console.log(er);
-    } else {
-      console.log('success');
-    }
-  });
-  res.json({ message: 'File(s) uploaded successfully' });
+    await exec(cmd, (er) => {
+      if (er) {
+        console.log(er);
+      } else {
+        console.log('success');
+      }
+    });
+    res.json({ message: 'File(s) uploaded successfully' });
+  } catch (error) {
+    res.json({ message: 'errors' });
+  }
 });
 
 app.listen(port, () => {
