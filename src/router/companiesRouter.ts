@@ -90,5 +90,6 @@ router.post('/add-file', securityCodeMidleWare, async (req, res) => {
     });
   }
 });
+router.get('/:id', securityCodeMidleWare, async (req, res) => {});
 
 export default router;
